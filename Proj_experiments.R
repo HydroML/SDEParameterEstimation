@@ -794,7 +794,7 @@ preterb_g=rep(0,length(Traj_max_vec))
 preterb_a=rep(0,length(Traj_max_vec))
 preterb_g_rn=rep(0,length(Traj_max_vec))
 preterb_a_rn=rep(0,length(Traj_max_vec))
-replicates=15
+replicates=10
 
 MultiGaussianLike_foropt_mt<-function(params,X_vec,GTG_est){
   A_est=matrix(params[1:ncol(X_vec)^2],nrow = ncol(X_vec))
@@ -828,7 +828,7 @@ MultiGaussianLike_foropt_mt_rn<-function(params,X_vec,GTG_est){
     curXvec=X_vec[,,t]
     cur_mu= A_est%*%t(matrix(curXvec,ncol = dim))
     for(i in 2:nrow(curXvec)){
-      Lik=Lik+  cur_mu[,i-1] %*% Ls%*%t(Ls) %*% (curXvec[i,]-curXvec[i-1,]) - 0.5* cur_mu[,i-1] %*% Ls%*%t(Ls) %*% cur_mu[,i-1] *dt
+      Lik=Lik+  cur_mu[,i-1] %*% solve(GTG_est) %*% (curXvec[i,]-curXvec[i-1,]) - 0.5* cur_mu[,i-1] %*% solve(GTG_est) %*% cur_mu[,i-1] *dt
     }
   }
   
@@ -836,7 +836,7 @@ MultiGaussianLike_foropt_mt_rn<-function(params,X_vec,GTG_est){
 }
 
 for(j in 1:length(Traj_max_vec)){
-  Tmax=1
+  Tmax=2
   dim=2
   N_max=50
   dt=Tmax/N_max
@@ -877,13 +877,13 @@ for(j in 1:length(Traj_max_vec)){
     preterb_a[j]= preterb_a[j]+mean(abs(matrix(res$par[1:ncol(X_vec)^2],nrow = dim)-A)^2)
     
     
-    res <- optim(par=c(as.numeric(A),trueL)+2, MultiGaussianLike_foropt_mt_rn,method = "BFGS",X_vec=X_vec,GTG_est=GTG_est,
+    res <- optim(par=c(as.numeric(A))+2, MultiGaussianLike_foropt_mt_rn,method = "BFGS",X_vec=X_vec,GTG_est=GTG_est,
                  control = list(trace=1)) 
     res
     
-    L_est=matrix(0,ncol = dim,nrow=dim)
-    L_est[lower.tri(L_est,diag = T)]= res$par[(1+ncol(X_vec)^2):length(res$par)]
-    GTG_est = L_est %*% t(L_est)
+    #L_est=matrix(0,ncol = dim,nrow=dim)
+    #L_est[lower.tri(L_est,diag = T)]= res$par[(1+ncol(X_vec)^2):length(res$par)]
+    #GTG_est = L_est %*% t(L_est)
     
     preterb_g_rn[j]= preterb_g[j]+mean(abs(G%*%t(G)- GTG_est)^2)
     preterb_a_rn[j]= preterb_a[j]+mean(abs(matrix(res$par[1:ncol(X_vec)^2],nrow = dim)-A)^2)
@@ -894,6 +894,12 @@ for(j in 1:length(Traj_max_vec)){
 plot(Traj_max_vec,log10(preterb_g/replicates),type="l",ylim=c(log10(min(preterb_a,preterb_g)/replicates),log10(max(preterb_a,preterb_g)/replicates))*1
      ,lwd=2,xlab="# of trajectories",ylab = "log10 MSE")
 lines(Traj_max_vec,log10(preterb_a/replicates),col="red",lwd=2)
+legend("topright", legend=c("G", "A"),
+       col=c("black", "red"),lty=1, cex=0.8,lwd=3)
+
+plot(Traj_max_vec,log10(preterb_g_rn/replicates),type="l",ylim=c(log10(min(preterb_a_rn,preterb_g_rn)/replicates),log10(max(preterb_a_rn,preterb_g_rn)/replicates))*1
+     ,lwd=2,xlab="# of trajectories",ylab = "log10 MSE")
+lines(Traj_max_vec,log10(preterb_a_rn/replicates),col="red",lwd=2)
 legend("topright", legend=c("G", "A"),
        col=c("black", "red"),lty=1, cex=0.8,lwd=3)
 
@@ -1203,6 +1209,23 @@ par(mar = c(5.1, 4.1, 0.5, 2.1))
 plot(dim_vec,log10(preterb_g/replicates),type="l",ylim=c(log10(min(preterb_a,preterb_g)/replicates),log10(max(preterb_a,preterb_g)/replicates))*1
      ,lwd=2,xlab="# of dimentions",ylab = "log10 MSE")
 lines(dim_vec,log10(preterb_a/replicates),col="red",lwd=2)
+legend("topright", legend=c("G", "A"),
+       col=c("black", "red"),lty=1, cex=0.8,lwd=3)
+dev.off()
+
+
+##########################################################################################################
+#####################################   distributed delay   ####################################################
+######################################################################################################################
+#results gathered from Wang code
+x<-c(2,3,5,10,20)
+y1<-c(0.00023,0.000225,0.00022,0.00022,0.00022)
+y2<-c(4.78,0.825,0.386,0.246,0.263)
+
+jpeg(paste0("MSEvsDIM_delay.jpeg"),width = 5, height = 3, units = 'in',res = 400)
+par(mar = c(5.1, 4.1, 0.5, 2.1))
+plot(x,y1,ylim=c(0,5),type = "b",lwd=2,ylab = "MSE",xlab="# of trajectories")
+lines(x,y2,col="red",lwd=2,type = "b")
 legend("topright", legend=c("G", "A"),
        col=c("black", "red"),lty=1, cex=0.8,lwd=3)
 dev.off()
